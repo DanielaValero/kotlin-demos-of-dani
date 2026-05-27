@@ -60,6 +60,50 @@ sequence.filter{}.map{}.take(100)  // processes ~100 items, STOPS
 list.filter{}.map{}.take(100)      // processes 80k items, keeps 100
 ```
 
+## Scaling to Millions of Records
+
+With **millions of data** the differences become critical:
+
+### Memory at Scale
+
+| Approach | 1 Million customers × 1KB | What happens |
+|----------|---------------------------|--------------|
+| **List** | ~1GB per MMF in memory | Likely **OutOfMemoryError** |
+| **Sequence + chunked(10k)** | ~10MB at a time | Works fine |
+| **Flow** | Streams, controlled memory | Works fine |
+
+```kotlin
+// LIST - tries to load 1 million into memory at once
+val customers = db.fetchCustomersByMmfAsList(mmf)  // 1GB in heap!
+    .filter { ... }  // creates ANOTHER 1GB list
+    .map { ... }     // creates ANOTHER 1GB list
+// Total: ~3GB just for intermediate collections!
+
+// SEQUENCE - only holds 10k at a time
+db.fetchCustomersByMmfAsSequence(mmf)
+    .filter { ... }   // no intermediate collection
+    .map { ... }      // no intermediate collection
+    .chunked(10_000)  // only 10k in memory
+    .forEach { chunk -> persist(chunk) }
+```
+
+### Speed at Scale
+
+Speed difference stays similar (~2x for Flow) because it's about **parallelizing I/O**, not data size:
+
+```
+List/Sequence: 200ms + 200ms + 200ms = 600ms (sequential)
+Flow:          max(200ms, 200ms, 200ms) = 200ms (parallel)
+```
+
+### Summary by Data Size
+
+| Data Size | List | Sequence | Flow |
+|-----------|------|----------|------|
+| 100k | Works | Works | Fastest |
+| 1M | Slow, high memory | Works, chunked | Fastest |
+| 10M+ | **OOM crash** | Works | Fastest |
+
 ## When to Use Each
 
 | Scenario | Best Choice | Why |
