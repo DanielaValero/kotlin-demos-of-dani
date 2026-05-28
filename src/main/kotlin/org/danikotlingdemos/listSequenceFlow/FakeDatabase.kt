@@ -22,7 +22,7 @@ class FakeDatabase(
             .map { id ->
                 Customer(
                     id = id,
-                    coreAccountNumber = "ACC-${id.toString().padStart(8, '0')}",
+                    accountNumber = "ACC-${id.toString().padStart(8, '0')}",
                     settlementEscrow = "ESC-${(id % 100).toString().padStart(4, '0')}",
                     mmf = mmf,
                     isEligible = id % 5 != 0  // ~80% eligible
@@ -70,7 +70,7 @@ class FakeDatabase(
 
 data class Customer(
     val id: Int,
-    val coreAccountNumber: String,
+    val accountNumber: String,
     val settlementEscrow: String,
     val mmf: MMF,
     val isEligible: Boolean,
